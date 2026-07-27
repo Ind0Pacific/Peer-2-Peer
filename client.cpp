@@ -1,5 +1,6 @@
 #include "functions.cpp"
 #include <cstring>
+#include <sys/socket.h>
 
 int main() {
 
@@ -26,16 +27,17 @@ int main() {
     if (message_send == "exit") {
       std::cout << "[-] Closing connection...\n";
       break;
-    }
-    else send(clientFD, message_send.c_str(), message_send.length(), 0);
+    } else
+      send(clientFD, message_send.c_str(), message_send.length(), 0);
   }
 
   char buffer[4098];
   std::memset(buffer, 0, sizeof(buffer));
-  
+
   recv(clientFD, buffer, 4098, 0);
   std::cout << "Response is " << buffer << std::endl;
 
   close(clientFD);
+  shutdown(clientFD, SHUT_RDWR);
   return 0;
 }
