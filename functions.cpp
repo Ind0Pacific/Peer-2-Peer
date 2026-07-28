@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <thread>
 
 struct AcceptedClients{
   int acceptedSocketsFD;
@@ -57,16 +58,20 @@ struct AcceptedClients* acceptNewConnection(int serverSocketFD) {
    return client;
 }
 
-void receiveAndPrintIncomingData(struct AcceptedClients *&clientNode) {
+void receiveAndPrintIncomingData(struct AcceptedClients *clientNode) {
   char buffer[4098];
   while (true) {
     std::memset(buffer, 0, sizeof(buffer));
     ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 4096, 0);
-    if (data_Recived > 0)
+    
+    if (data_Recived > 0) {
       std::cout << buffer << std::endl;
-    else {
-      std::cout << "User has exited the chat";
-      break;
+    } else {
+      std::cout << "[!] User on socket " << clientNode->acceptedSocketsFD << " has exited the chat.\n";
+      break; 
     }
   }
+  close(clientNode->acceptedSocketsFD);
+  delete clientNode;
 }
+
