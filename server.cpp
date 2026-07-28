@@ -19,13 +19,17 @@ int main() {
 
   listen(serverSocketFD, 10);
   std::cout << "[*] Waiting for connections...\n";
-  struct AcceptedClients* clientNode = acceptNewConnection(serverSocketFD);
-  if (!clientNode->acceptedSuccessfully) return -1;
-
-  receiveAndPrintIncomingData(clientNode);
-
-  close(clientNode->acceptedSocketsFD);
-  delete clientNode; 
+  while (true) {
+    struct AcceptedClients* clientNode = acceptNewConnection(serverSocketFD);
+    if (!clientNode->acceptedSuccessfully) {
+        delete clientNode;
+        continue; 
+    }
+    std::thread clientThread(receiveAndPrintIncomingData, clientNode);
+    clientThread.detach(); 
+}
   shutdown(serverSocketFD, SHUT_RDWR);
+
+   
   return 0;
 }
