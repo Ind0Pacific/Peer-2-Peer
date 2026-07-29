@@ -42,7 +42,7 @@ int main() {
   char buffer[4096];
   std::memset(buffer, 0, sizeof(buffer));
 
-  recv(clientFD, buffer, 4098, 0);
+  recv(clientFD, buffer, 4096, 0);
   std::cout << "Response is " << buffer << std::endl;
 
   close(clientFD);
