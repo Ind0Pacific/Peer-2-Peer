@@ -45,7 +45,7 @@ struct AcceptedClients* acceptNewConnection(int serverSocketFD) {
   
    socklen_t clientAddressSize = sizeof(client->address);
    client->acceptedSocketsFD = accept(serverSocketFD, (struct sockaddr *)&client->address, &clientAddressSize);
-
+ 
    if (client->acceptedSocketsFD < 0) {
     std::cout << "[-] Failed to accept client connection\n";
     client->error = client->acceptedSocketsFD;
@@ -73,7 +73,7 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode) {
     if (data_Recived > 0) {
       std::cout << "[" << userName << "]: " << buffer << std::endl;
     } else {
-      std::cout << "[!] " << userName << clientNode->acceptedSocketsFD << " has exited the chat.\n";
+      std::cout << "[!] " << userName << " (FD: " << clientNode->acceptedSocketsFD << ") has exited the chat.\n";
       break; 
     }
   }
