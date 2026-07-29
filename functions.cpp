@@ -2,9 +2,9 @@
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
+#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <thread>
 
 struct AcceptedClients{
   int acceptedSocketsFD;
@@ -59,19 +59,24 @@ struct AcceptedClients* acceptNewConnection(int serverSocketFD) {
 }
 
 void receiveAndPrintIncomingData(struct AcceptedClients *clientNode) {
-  char buffer[4098];
+  char buffer[4096];
+
+  std::memset(buffer , 0 , sizeof(buffer));
+  recv(clientNode ->acceptedSocketsFD, buffer, 4096, 0);
+  std::string userName = buffer;
+  std::cout << "[+] " << userName << " has joined the server.\n";
+
   while (true) {
     std::memset(buffer, 0, sizeof(buffer));
     ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 4096, 0);
     
     if (data_Recived > 0) {
-      std::cout << buffer << std::endl;
+      std::cout << "[" << userName << "]: " << buffer << std::endl;
     } else {
-      std::cout << "[!] User on socket " << clientNode->acceptedSocketsFD << " has exited the chat.\n";
+      std::cout << "[!] " << userName << clientNode->acceptedSocketsFD << " has exited the chat.\n";
       break; 
     }
   }
   close(clientNode->acceptedSocketsFD);
   delete clientNode;
 }
-
