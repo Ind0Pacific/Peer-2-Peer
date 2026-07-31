@@ -1,9 +1,9 @@
 #include "functions.cpp"
-#include <cstring>
 #include <iostream>
 #include <istream>
 #include <string>
 #include <sys/socket.h>
+#include <thread>
 
 using namespace std;
 int main() {
@@ -29,6 +29,9 @@ int main() {
   cout << "[+] Connected! Type 'exit' to quit.\n";
   loadChatHistory(clientName, targetIP);
 
+  thread listener(recevieMessages , clientFD);
+  listener.detach();
+
   while (true) {
     cout << "Enter message: ";
     getline(cin >> ws, message_send);
@@ -39,11 +42,6 @@ int main() {
       send(clientFD, message_send.c_str(), message_send.length(), 0);
     }  
   }
-  char buffer[4096];
-  memset(buffer, 0, sizeof(buffer));
-  recv(clientFD, buffer, 4096, 0);
-  cout << "Response is " << buffer << endl;
-
   close(clientFD);
   shutdown(clientFD, SHUT_RDWR);
   return 0;
