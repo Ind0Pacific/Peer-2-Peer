@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <ios>
@@ -7,8 +8,9 @@
 #include <netinet/in.h>
 #include <string>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -48,8 +50,10 @@ struct sockaddr_in createIPv4Address(const char *ip, int port) {
 struct AcceptedClients *acceptNewConnection(int serverSocketFD) {
 
   struct AcceptedClients *client = new AcceptedClients;
+
   socklen_t clientAddressSize = sizeof(client->address);
-  client->acceptedSocketsFD = accept(serverSocketFD, (struct sockaddr *)&client->address, &clientAddressSize);
+  client->acceptedSocketsFD = accept(
+      serverSocketFD, (struct sockaddr *)&client->address, &clientAddressSize);
 
   if (client->acceptedSocketsFD < 0) {
     cout << "[-] Failed to accept client connection\n";
@@ -64,35 +68,36 @@ struct AcceptedClients *acceptNewConnection(int serverSocketFD) {
 }
 
 void loadChatHistory(const string &userName, const string &ip) {
-  mkdir("bin", 0777); 
+  mkdir("bin", 0777);
   mkdir("bin/chat_history", 0777);
   string filename = "bin/chat_history/" + userName + "-" + ip + ".json";
   ifstream file(filename);
   string line;
 
-  cout << "\n--- Loading Chat History for " << userName << " ---\n";
-  while (getline(file, line)) {
   if (file.is_open()) {
-    size_t senderStart = line.find("\"sender\": \"");
-    size_t msgStart = line.find("\"message\": \"");
+    cout << "\n--- Loading Chat History for " << userName << " ---\n";
+    while (getline(file, line)) {
+      size_t senderStart = line.find("\"sender\": \"");
+      size_t msgStart = line.find("\"message\": \"");
 
-    if(senderStart != string::npos && msgStart != string::npos){
-      senderStart += 11;
-      size_t senderEnd = line.find("\"" , senderStart);
-      string sender = line.substr(senderStart , senderEnd - senderStart);
+      if (senderStart != string::npos && msgStart != string::npos) {
+        senderStart += 11;
+        size_t senderEnd = line.find("\"", senderStart);
+        string sender = line.substr(senderStart, senderEnd - senderStart);
 
-      msgStart += 12;
-      size_t msgEnd = line.find("\"}" , msgStart);
-      string message = line.substr(msgStart, msgEnd - msgStart);
-      cout << sender << ": " << message << "\n";
+        msgStart += 12;
+        size_t msgEnd = line.find("\"}", msgStart);
+        string message = line.substr(msgStart, msgEnd - msgStart);
+        cout << sender << ": " << message << "\n";
+      }
     }
-  }
   }
   cout << "--- End of History ---\n\n";
   file.close();
 }
 
-void saveMessagesToHistory(const string &userName, const string &ip, const string &sender, const string &message) {
+void saveMessagesToHistory(const string &userName, const string &ip,
+                           const string &sender, const string &message) {
   mkdir("bin", 0777);
   mkdir("bin/chat_history", 0777);
 
@@ -100,7 +105,8 @@ void saveMessagesToHistory(const string &userName, const string &ip, const strin
   ofstream file(filename, ios::app);
 
   if (file.is_open()) {
-    file << "{\"sender\": \"" << sender << "\", \"message\": \"" << message << "\"}\n";
+    file << "{\"sender\": \"" << sender << "\", \"message\": \"" << message
+         << "\"}\n";
     file.close();
   }
 }
@@ -112,18 +118,19 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode) {
   memset(buffer, 0, sizeof(buffer));
   recv(clientNode->acceptedSocketsFD, buffer, 4096, 0);
   string userName = buffer;
-  cout << "[+] " << userName << " has joined the server from IP: " << clientIP << ".\n";
+  cout << "[+] " << userName << " has joined the server from IP: " << clientIP
+       << ".\n";
   loadChatHistory(userName, clientIP);
 
   while (true) {
     memset(buffer, 0, sizeof(buffer));
     ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 4096, 0);
+
     if (data_Recived > 0) {
       string message = buffer;
       cout << "[" << userName << "]: " << buffer << endl;
       saveMessagesToHistory(userName, clientIP, userName, message);
-    }
-    else {
+    } else {
       cout << "[!] " << userName << " (FD: " << clientNode->acceptedSocketsFD
            << ") has exited the chat.\n";
       break;
@@ -131,4 +138,18 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode) {
   }
   close(clientNode->acceptedSocketsFD);
   delete clientNode;
+}
+
+void recevieMessages(int clientFD) {
+  char buffer[4096];
+  while (true) {
+    memset(buffer, 0, sizeof(buffer));
+    ssize_t byteRecived = recv(clientFD, buffer, 4096, 0);
+    if (byteRecived > 0) {
+      cout << "\n" << buffer << "\nEnter message: " << flush;
+    } else {
+      cout << "\n[!] Server disconnected.\n";
+      exit(0);
+    }
+  }
 }
