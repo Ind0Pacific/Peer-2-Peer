@@ -6,7 +6,8 @@
 #include <thread>
 
 using namespace std;
-int main() {
+int main()
+{
 
   string clientName;
   string targetIP;
@@ -19,28 +20,55 @@ int main() {
   struct sockaddr_in address = createIPv4Address(targetIP.c_str(), targetPort);
   int result = connect(clientFD, (struct sockaddr *)&address, sizeof address);
 
-  if (result < 0) {
+  if (result < 0)
+  {
     cout << ("Connection failed");
     return -1;
   }
-  cout << "Enter your name: ";
+
+  cout << "Enter your display name: ";
   getline(cin >> ws, clientName);
   send(clientFD, clientName.c_str(), clientName.length(), 0);
+
+  cout << "[*] Negotiating UID with server...\n";
+  char buffer[4096];
+  memset(buffer, 0, sizeof(buffer));
+  recv(clientFD, buffer, 4096, 0);
+
+  string serverResponse = buffer;
+  if (serverResponse.find("[UID_ASSIGNED] ") == 0)
+  {
+    string assignedName = serverResponse.substr(15);
+
+    if (assignedName != clientName)
+    {
+      cout << "[!] Name taken. Server assigned you the UID: " << assignedName << "\n";
+      clientName = assignedName;
+    }
+    else
+    {
+      cout << "[+] Connected successfully as: " << clientName << "\n";
+    }
+  }
   cout << "[+] Connected! Type 'exit' to quit.\n";
   loadChatHistory(clientName, targetIP);
 
-  thread listener(recevieMessages , clientFD);
+  thread listener(recevieMessages, clientFD);
   listener.detach();
 
-  while (true) {
+  while (true)
+  {
     cout << "Enter message: ";
     getline(cin >> ws, message_send);
-    if (message_send == "exit") {
+    if (message_send == "exit")
+    {
       cout << "[-] Closing connection...\n";
       break;
-    } else{
+    }
+    else
+    {
       send(clientFD, message_send.c_str(), message_send.length(), 0);
-    }  
+    }
   }
   close(clientFD);
   shutdown(clientFD, SHUT_RDWR);
