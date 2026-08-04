@@ -63,19 +63,19 @@ int main()
 
     if (assignedName != clientName)
     {
-      cout << "[!] Name taken. Server assigned you the UID: " << assignedName
-           << "\n";
+      cout << RED << "[!] Name taken. Server assigned you the UID: " << assignedName << RESET << "\n";
       clientName = assignedName;
     }
     else
     {
-      cout << "[+] Connected successfully as: " << clientName << "\n";
+      cout << YELLOW << "[+] Connected successfully as: " << clientName << RESET << "\n";
     }
   }
 
-  cout << "\n=======================================\n";
+  cout << YELLOW << "\n=======================================\n";
   cout << "           YOUR RECENT CHATS           \n";
-  cout << "=======================================\n";
+  cout << "=======================================\n"
+       << RESET;
 
   // chat file storage folder scan for .json files
   if (fs::exists(path) && fs::is_directory(path))
@@ -134,6 +134,7 @@ int main()
           msgStart += 12;
           msgEnd = line.find("\"}", msgStart);
           message = line.substr(msgStart, msgEnd - msgStart);
+          cout << GREEN << sender << ": " << message << RESET << "\n";
           cout << sender << ": " << message << "\n";
         }
       }
@@ -158,7 +159,7 @@ int main()
 
   while (true)
   {
-    cout << "Enter message: ";
+    cout << CYAN << "Enter message: " << RESET;
     getline(cin >> ws, message_send);
     if (message_send == "exit")
     {
