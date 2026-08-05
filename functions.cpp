@@ -285,12 +285,13 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
     }
     else
     {
-      cout << "[!] " << finalName << " has exited.\n";
+      cout << RED << "[!] " << finalName << " has exited." << RESET << "\n";
+
       lock_guard<mutex> lock(routerMutex);
-      userSockets.erase(finalName); // Remove dm
+
+      userSockets.erase(finalName); // Remove from DMs
 
       // Remove from global
-
       for (auto i = activeClients.begin(); i != activeClients.end(); ++i)
       {
         if (*i == clientNode->acceptedSocketsFD)
@@ -300,11 +301,15 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
         }
       }
 
-      // Remove from groups
+      // Remove from groups preventing the deadlock and crash -> free(): double
+      // free detected in tcache 2
+      vector<string> emptyGroups;
 
       for (auto &room : groupRooms)
       {
         auto &fds = room.second;
+
+        // Delete user socket from the group
         for (auto i = fds.begin(); i != fds.end();)
         {
           if (*i == clientNode->acceptedSocketsFD)
@@ -316,7 +321,22 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
             ++i;
           }
         }
+
+        // Add for deletion if group is empty
+        if (fds.empty())
+        {
+          emptyGroups.push_back(room.first);
+        }
       }
+
+      // Delete empty groups after loop is completely
+      for (const string &groupName : emptyGroups)
+      {
+        cout << YELLOW << "[Server]: Group '" << groupName
+             << "' is empty and has been deleted." << RESET << "\n";
+        groupRooms.erase(groupName);
+      }
+
       break;
     }
   }
