@@ -1,3 +1,10 @@
+/*
+ * Peer-2-Peer (A TCP Chat Application) - Version 1.0 Release
+ * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific)
+ * Description: Multi-threaded C++ TCP chat system featuring room routing,
+ *              DMs, history logging.
+ */
+
 #include "functions.cpp"
 #include <iostream>
 #include <netinet/in.h>
@@ -5,22 +12,26 @@
 #include <thread>
 #include <unistd.h>
 
-int main() {
+int main()
+{
 
   int serverSocketFD = createTCPSocket();
   struct sockaddr_in serveraddress = createIPv4Address("", 2000);
   int result = bind(serverSocketFD, (struct sockaddr *)&serveraddress, sizeof(serveraddress));
   if (result == 0)
     std::cout << "[+] Server is bound to port 2000\n";
-  else {
+  else
+  {
     std::cout << "[-] Bind failed\n";
     return -1;
   }
   listen(serverSocketFD, 10);
   std::cout << "[*] Waiting for connections...\n";
-  while (true) {
+  while (true)
+  {
     struct AcceptedClients *clientNode = acceptNewConnection(serverSocketFD);
-    if (!clientNode->acceptedSuccessfully) {
+    if (!clientNode->acceptedSuccessfully)
+    {
       delete clientNode;
       continue;
     }

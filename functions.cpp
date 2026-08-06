@@ -1,3 +1,10 @@
+/*
+ * Peer-2-Peer (A TCP Chat Application) - Version 1.0 Release
+ * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific)
+ * Description: Multi-threaded C++ TCP chat system featuring room routing,
+ *              DMs, history logging.
+ */
+
 #include <arpa/inet.h>
 #include <cstddef>
 #include <cstdlib>
