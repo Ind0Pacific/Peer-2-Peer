@@ -1,8 +1,8 @@
 /*
- * Peer-2-Peer (A TCP Chat Application) - Version 1.0 Release
- * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific)
+ * Peer-2-Peer (A TCP Chat Application) - Version 1.5.0 Release.
+ * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific).
  * Description: Multi-threaded C++ TCP chat system featuring room routing,
- *              DMs, history logging.
+ *              DMs, history logging using sockets.
  */
 
 #include <arpa/inet.h>
@@ -29,9 +29,11 @@ const std::string YELLOW = "\033[33m";
 const std::string CYAN = "\033[36m";
 
 using namespace std;
+
 vector<int> activeClients;
 map<string, int> userSockets;
 map<string, vector<int>> groupRooms;
+map<string, string> userIPs;
 mutex routerMutex;
 
 struct AcceptedClients
@@ -186,6 +188,8 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
     }
     userSockets[finalName] = clientNode->acceptedSocketsFD;
     activeClients.push_back(clientNode->acceptedSocketsFD);
+
+    userIPs[finalName] = clientIP;
   }
 
   string handShakeMsg = "[UID_ASSIGNED] " + finalName;
@@ -236,6 +240,37 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
                  errorMessage.length(), 0);
           }
         }
+      }
+
+      else if (message == "/scan")
+      {
+        string scanResult =
+            YELLOW + "\n[*] Executing Live Network Scan...\n" + RESET;
+
+        lock_guard<mutex> lock(routerMutex);
+        for (auto const &user : userIPs)
+        {
+          string targetUser = user.first;
+          string targetIP = user.second;
+
+          // ping IP wait for 1sec max
+          string command = "ping -c 1 -W 1 " + targetIP + " > /dev/null 2>&1";
+          int isOnline = system(command.c_str());
+
+          if (isOnline == 0)
+          {
+            scanResult +=
+                targetUser + " (" + targetIP + ")" + GREEN + " [+]\n" + RESET;
+          }
+          else
+          {
+            scanResult +=
+                targetUser + " (" + targetIP + ")" + RED + " [+]\n" + RESET;
+          }
+        }
+        // Display who is online to usr
+        send(clientNode->acceptedSocketsFD, scanResult.c_str(),
+             scanResult.length(), 0);
       }
 
       // /join groupName system
@@ -297,6 +332,7 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
       lock_guard<mutex> lock(routerMutex);
 
       userSockets.erase(finalName); // Remove from DMs
+      userIPs.erase(finalName);     // del the IPs
 
       // Remove from global
       for (auto i = activeClients.begin(); i != activeClients.end(); ++i)
