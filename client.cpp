@@ -1,11 +1,13 @@
 /*
- * Peer-2-Peer (A TCP Chat Application) - Version 1.0 Release.
+ * Peer-2-Peer (A TCP Chat Application) - Version 1.5.0 Release.
  * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific).
  * Description: Multi-threaded C++ TCP chat system featuring room routing,
  *              DMs, history logging using sockets.
  */
 
 #include "functions.cpp"
+#include <arpa/inet.h>
+#include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <istream>
@@ -70,12 +72,15 @@ int main()
 
     if (assignedName != clientName)
     {
-      cout << RED << "[!] Name taken. Server assigned you the UID: " << assignedName << RESET << "\n";
+      cout << RED
+           << "[!] Name taken. Server assigned you the UID: " << assignedName
+           << RESET << "\n";
       clientName = assignedName;
     }
     else
     {
-      cout << YELLOW << "[+] Connected successfully as: " << clientName << RESET << "\n";
+      cout << YELLOW << "[+] Connected successfully as: " << clientName << RESET
+           << "\n";
     }
   }
 
@@ -142,7 +147,6 @@ int main()
           msgEnd = line.find("\"}", msgStart);
           message = line.substr(msgStart, msgEnd - msgStart);
           cout << GREEN << sender << ": " << message << RESET << "\n";
-          cout << sender << ": " << message << "\n";
         }
       }
       cout << "--- End of History ---\n\n";
@@ -155,7 +159,8 @@ int main()
 
   cout << "=======================================\n";
   cout << "[+] Server is live! Type 'exit' to quit.\n";
-  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg\n\n";
+  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg | "
+          "/scan - Check who is online using chat history\n\n";
 
   // background listner
 
