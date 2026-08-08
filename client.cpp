@@ -1,5 +1,5 @@
 /*
- * Peer-2-Peer (A TCP Chat Application) - Version 1.5.0 Release.
+ * Peer-2-Peer (A TCP Chat Application) - Version 1.5.7 Release.
  * Author: Deepanshu Vashisht (GitHub -> https://github.com/Ind0Pacific).
  * Description: Multi-threaded C++ TCP chat system featuring room routing,
  *              DMs, history logging using sockets.
@@ -61,9 +61,9 @@ int main()
   send(clientFD, clientName.c_str(), clientName.length(), 0);
 
   cout << "[*] Negotiating UID with server...\n";
-  char buffer[4096];
+  char buffer[65536];
   memset(buffer, 0, sizeof(buffer));
-  recv(clientFD, buffer, 4096, 0);
+  recv(clientFD, buffer, 65536, 0);
 
   string serverResponse = buffer;
   if (serverResponse.find("[UID_ASSIGNED] ") == 0)
@@ -159,7 +159,7 @@ int main()
 
   cout << "=======================================\n";
   cout << "[+] Server is live! Type 'exit' to quit.\n";
-  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg | "
+  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg | /send usename filename (should be one current directory adn less than 20KB) | "
           "/scan - Check who is online using chat history\n\n";
 
   // background listner
@@ -177,6 +177,50 @@ int main()
     {
       cout << "[-] Closing connection...\n";
       break;
+    }
+    else if (message_send.length() >= 6 && message_send.substr(0, 6) == "/send ")
+    {
+      size_t spacePos = message_send.find(' ', 6);
+      if (spacePos != string::npos)
+      {
+        string targetUser = message_send.substr(6, spacePos - 6);
+        string filepath = message_send.substr(spacePos + 1);
+
+        // Open file in binary
+        ifstream file(filepath, ios::binary);
+        if (file)
+        {
+          ostringstream oss;
+          oss << file.rdbuf();
+          string fileData = oss.str();
+          file.close();
+
+          // TCP Packet Fragmentation Safety Check
+          // buffer is of 60KB but we doing it of 20 as we need to add command target usr uuid etc this will increase the size so we need to prevent the buffer overflow
+          if (fileData.length() > 20000)
+          {
+            cout << RED << "[-] File too large! Max size is 20KB for this server." << RESET << "\n";
+          }
+          else
+          {
+            cout << YELLOW << "[*] Encoding and sending file..." << RESET << "\n";
+            string hexData = encodeHex(fileData);
+
+            // Extract just the filename from directory path
+            string filename = fs::path(filepath).filename().string();
+
+            // Package it for the server router
+            string networkPacket = "/file " + targetUser + " " + filename + " " + hexData;
+            send(clientFD, networkPacket.c_str(), networkPacket.length(), 0);
+
+            cout << GREEN << "[+] File '" << filename << "' sent successfully!" << RESET << "\n";
+          }
+        }
+        else
+        {
+          cout << RED << "[-] File not found: " << filepath << RESET << "\n";
+        }
+      }
     }
     else
     {
