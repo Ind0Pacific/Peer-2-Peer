@@ -21,7 +21,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 const std::string RESET = "\033[0m";
 const std::string RED = "\033[31m";
 const std::string GREEN = "\033[32m";
@@ -166,11 +168,11 @@ void broadcastMessage(const string &senderName, const string &message,
 
 void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
 {
-  char buffer[4096];
+  char buffer[65536];
   string clientIP = inet_ntoa(clientNode->address.sin_addr);
 
   memset(buffer, 0, sizeof(buffer));
-  recv(clientNode->acceptedSocketsFD, buffer, 4096, 0); // handshake
+  recv(clientNode->acceptedSocketsFD, buffer, 65536, 0); // handshake
 
   string requestedName = buffer;
   string finalName = requestedName;
@@ -202,7 +204,7 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
   while (true)
   {
     memset(buffer, 0, sizeof(buffer));
-    ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 4096, 0);
+    ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 65536, 0);
 
     if (data_Recived > 0)
     {
@@ -242,6 +244,40 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
         }
       }
 
+      // /send system
+
+      else if (message.length() >= 6 && message.substr(0, 6) == "/file ")
+      {
+        size_t firstSpace = message.find(' ', 6);
+        size_t secondSpace = message.find(' ', firstSpace + 1);
+
+        if (firstSpace != string::npos && secondSpace != string::npos)
+        {
+          string targetUser = message.substr(6, firstSpace - 6);
+          string filename =
+              message.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+          string hexData = message.substr(secondSpace + 1);
+
+          lock_guard<mutex> lock(routerMutex);
+          if (userSockets.find(targetUser) != userSockets.end())
+          {
+            int targetFD = userSockets[targetUser];
+
+            string formattedMsg =
+                "[FILE_INCOMING] " + finalName + " " + filename + " " + hexData;
+            send(targetFD, formattedMsg.c_str(), formattedMsg.length(), 0);
+          }
+          else
+          {
+            string errorMsg =
+                RED + "[Server]: User " + targetUser + " is offline.\n" + RESET;
+            send(clientNode->acceptedSocketsFD, errorMsg.c_str(),
+                 errorMsg.length(), 0);
+          }
+        }
+      }
+
+      // /scan system
       else if (message == "/scan")
       {
         string scanResult =
@@ -265,7 +301,7 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
           else
           {
             scanResult +=
-                targetUser + " (" + targetIP + ")" + RED + " [+]\n" + RESET;
+                targetUser + " (" + targetIP + ")" + RED + " [-]\n" + RESET;
           }
         }
         // Display who is online to usr
@@ -387,18 +423,74 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
   delete clientNode;
 }
 
+// HEX Encoding to send the file from one usr to another (as /0 will kill the
+// send mid way as it can exist in the file data)
+string encodeHex(const string &input)
+{
+  string hexOut;
+  const char *hexChars = "0123456789ABCDEF";
+  for (unsigned char c : input)
+  {
+    hexOut += hexChars[c >> 4];
+    hexOut += hexChars[c & 15];
+  }
+  return hexOut;
+}
+
+// HEX Decode
+string decodeHex(const string &hexIn)
+{
+  string outPut;
+  for (size_t i = 0; i < hexIn.length(); i += 2)
+  {
+    string byte = hexIn.substr(i, 2);
+    char c = (char)strtol(byte.c_str(), nullptr, 16);
+    outPut += c;
+  }
+  return outPut;
+}
+
 void recevieMessages(int clientFD)
 {
-  char buffer[4096];
+  char buffer[65536];
   while (true)
   {
     memset(buffer, 0, sizeof(buffer));
-    ssize_t byteRecived = recv(clientFD, buffer, 4096, 0);
+    ssize_t byteRecived = recv(clientFD, buffer, 65536, 0);
     if (byteRecived > 0)
     {
-      cout << "\n"
-           << GREEN << buffer << RESET << "\n"
-           << CYAN << "Enter message: " << RESET << flush;
+      string msg = buffer;
+
+      if (msg.length() > 16 && msg.substr(0, 16) == "[FILE_INCOMING] ")
+      {
+        size_t senderSpace = msg.find(' ', 16);
+        size_t fileSpace = msg.find(' ', senderSpace + 1);
+
+        string sender = msg.substr(16, senderSpace - 16);
+        string filename = msg.substr(senderSpace + 1, fileSpace - senderSpace - 1);
+        string hexData = msg.substr(fileSpace + 1);
+
+        // Decode the hex back into binary file data
+        string rawData = decodeHex(hexData);
+
+        // Save the file in downloads folder
+        fs::create_directories("bin/downloads");
+        ofstream outFile("bin/downloads/" + filename, ios::binary);
+        outFile << rawData;
+        outFile.close();
+
+        cout << "\n\a" << YELLOW << "[+] You received a file from " << sender << ": " << filename
+             << " (Saved in bin/downloads/)" << RESET
+             << "\n"
+             << CYAN << "Enter message: " << RESET << flush;
+      }
+      else
+      {
+        cout << "\n"
+             << GREEN << buffer << RESET
+             << "\n"
+             << CYAN << "Enter message: " << RESET << flush;
+      }
     }
     else
     {
