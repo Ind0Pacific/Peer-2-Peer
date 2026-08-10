@@ -34,6 +34,15 @@ int main()
   string selectedFile;
   string sender;
   string message;
+  string serverResponse;
+  string assignedName;
+  string filename;
+  string displayName;
+  string targetUser;
+  string filepath;
+  string fileData;
+  string hexData;
+  string networkPacket;
   string path = "bin/chat_history";
 
   vector<string> chatFiles;
@@ -42,6 +51,7 @@ int main()
   size_t msgStart;
   size_t senderEnd;
   size_t msgEnd;
+  size_t spacePos;
 
   cout << "Enter the IP and port (e.g., 127.0.0.1 2000): ";
   cin >> targetIP >> targetPort;
@@ -65,10 +75,10 @@ int main()
   memset(buffer, 0, sizeof(buffer));
   recv(clientFD, buffer, 65536, 0);
 
-  string serverResponse = buffer;
+  serverResponse = buffer;
   if (serverResponse.find("[UID_ASSIGNED] ") == 0)
   {
-    string assignedName = serverResponse.substr(15);
+    assignedName = serverResponse.substr(15);
 
     if (assignedName != clientName)
     {
@@ -96,9 +106,9 @@ int main()
     {
       if (entry.path().extension() == ".json")
       {
-        string filename = entry.path().filename().string();
+        filename = entry.path().filename().string();
         chatFiles.push_back(filename);
-        string displayName = filename.substr(0, filename.length() - 5);
+        displayName = filename.substr(0, filename.length() - 5);
         cout << "[" << index << "] " << displayName << "\n";
         index++;
       }
@@ -180,11 +190,11 @@ int main()
     }
     else if (message_send.length() >= 6 && message_send.substr(0, 6) == "/send ")
     {
-      size_t spacePos = message_send.find(' ', 6);
+      spacePos = message_send.find(' ', 6);
       if (spacePos != string::npos)
       {
-        string targetUser = message_send.substr(6, spacePos - 6);
-        string filepath = message_send.substr(spacePos + 1);
+        targetUser = message_send.substr(6, spacePos - 6);
+        filepath = message_send.substr(spacePos + 1);
 
         // Open file in binary
         ifstream file(filepath, ios::binary);
@@ -192,7 +202,7 @@ int main()
         {
           ostringstream oss;
           oss << file.rdbuf();
-          string fileData = oss.str();
+          fileData = oss.str();
           file.close();
 
           // TCP Packet Fragmentation Safety Check
@@ -204,13 +214,13 @@ int main()
           else
           {
             cout << YELLOW << "[*] Encoding and sending file..." << RESET << "\n";
-            string hexData = encodeHex(fileData);
+            hexData = encodeHex(fileData);
 
             // Extract just the filename from directory path
-            string filename = fs::path(filepath).filename().string();
+            filename = fs::path(filepath).filename().string();
 
             // Package it for the server router
-            string networkPacket = "/file " + targetUser + " " + filename + " " + hexData;
+            networkPacket = "/file " + targetUser + " " + filename + " " + hexData;
             send(clientFD, networkPacket.c_str(), networkPacket.length(), 0);
 
             cout << GREEN << "[+] File '" << filename << "' sent successfully!" << RESET << "\n";
