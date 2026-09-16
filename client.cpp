@@ -71,11 +71,14 @@ int main()
   send(clientFD, clientName.c_str(), clientName.length(), 0);
 
   cout << "[*] Negotiating UID with server...\n";
-  char buffer[65536];
-  memset(buffer, 0, sizeof(buffer));
-  recv(clientFD, buffer, 65536, 0);
+  
+  //Switched from Stack char array to 5MB Heap Vector
+  vector<char> buffer(5242880, 0);
+  recv(clientFD, buffer.data(), buffer.size(), 0);
 
-  serverResponse = buffer;
+ // Convert the vector data safely back to a string
+  serverResponse = string(buffer.data());
+  
   if (serverResponse.find("[UID_ASSIGNED] ") == 0)
   {
     assignedName = serverResponse.substr(15);
@@ -169,7 +172,7 @@ int main()
 
   cout << "=======================================\n";
   cout << "[+] Server is live! Type 'exit' to quit.\n";
-  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg | /send usename filename (should be one current directory adn less than 20KB) | "
+  cout << "[?] Commands: /dm User#1 msg | /join Group | /group Group msg | /send usename filename (should be one current directory and less than 2MB) | "
           "/scan - Check who is online using chat history\n\n";
 
   // background listner
@@ -206,10 +209,10 @@ int main()
           file.close();
 
           // TCP Packet Fragmentation Safety Check
-          // buffer is of 60KB but we doing it of 20 as we need to add command target usr uuid etc this will increase the size so we need to prevent the buffer overflow
-          if (fileData.length() > 20000)
+          // buffer is of 5MB but we doing it of 2MB as we need to add target usr uuid etc which will increase the size of data so to prevent the buffer overflow
+          if (fileData.length() > 2000000)
           {
-            cout << RED << "[-] File too large! Max size is 20KB for this server." << RESET << "\n";
+            cout << RED << "[-] File too large! Max size is 2MB for this server." << RESET << "\n";
           }
           else
           {
