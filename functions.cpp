@@ -5,6 +5,7 @@
  *              DMs, history logging using sockets.
  */
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cstddef>
 #include <cstdlib>
@@ -168,14 +169,16 @@ void broadcastMessage(const string &senderName, const string &message,
 
 void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
 {
-  char buffer[65536];
+  vector<char> buffer(5242880, 0); // 5MB Heap Buffer
   string clientIP = inet_ntoa(clientNode->address.sin_addr);
 
-  memset(buffer, 0, sizeof(buffer));
-  recv(clientNode->acceptedSocketsFD, buffer, 65536, 0); // handshake
+  fill(buffer.begin(), buffer.end(), 0);
+  recv(clientNode->acceptedSocketsFD, buffer.data(), buffer.size(), 0); // handshake
 
-  string requestedName = buffer;
+  // convert vector to string using .data()
+  string requestedName(buffer.data()); 
   string finalName = requestedName;
+  
   {
     lock_guard<mutex> lock(routerMutex);
     if (userSockets.find(requestedName) != userSockets.end())
@@ -203,13 +206,13 @@ void receiveAndPrintIncomingData(struct AcceptedClients *clientNode)
 
   while (true)
   {
-    memset(buffer, 0, sizeof(buffer));
-    ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer, 65536, 0);
+    fill(buffer.begin(), buffer.end(), 0);
+    ssize_t data_Recived = recv(clientNode->acceptedSocketsFD, buffer.data(), buffer.size(), 0);
 
-    if (data_Recived > 0)
-    {
-      string message = buffer;
-      cout << "[" << finalName << "]: " << buffer << endl;
+    if (data_Recived > 0) {
+      //convert vector data to C++ string
+      string message(buffer.data());
+      cout << "[" << finalName << "]: " << message << endl;
 
       //   /dm uuid system
 
@@ -452,14 +455,14 @@ string decodeHex(const string &hexIn)
 
 void recevieMessages(int clientFD)
 {
-  char buffer[65536];
-  while (true)
-  {
-    memset(buffer, 0, sizeof(buffer));
-    ssize_t byteRecived = recv(clientFD, buffer, 65536, 0);
-    if (byteRecived > 0)
-    {
-      string msg = buffer;
+  vector<char> buffer(5242880, 0); 
+  
+  while (true) {
+    fill(buffer.begin(), buffer.end(), 0);
+    ssize_t byteRecived = recv(clientFD, buffer.data(), buffer.size(), 0);
+    
+    if (byteRecived > 0) {
+      string msg(buffer.data());
 
       if (msg.length() > 16 && msg.substr(0, 16) == "[FILE_INCOMING] ")
       {
@@ -487,7 +490,7 @@ void recevieMessages(int clientFD)
       else
       {
         cout << "\n"
-             << GREEN << buffer << RESET
+             << GREEN << msg << RESET
              << "\n"
              << CYAN << "Enter message: " << RESET << flush;
       }
